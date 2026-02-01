@@ -1,224 +1,411 @@
--- SERVICES
+print("Hello World")
+
+--[[
+    HITBOX EXPANDER - PC & Mobile
+    Agrandit les hitboxes des ENNEMIS pour faciliter le flash step
+]]
+
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-------------------------------------------------
--- CONFIG
-------------------------------------------------
-local ENABLED_HITBOX = false
-local ENABLED_ESP = false
-local HITBOX_SIZE = 20
-local ESP_COLOR = Color3.fromRGB(255, 0, 0)
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local modified = {}
-local boxes = {}
+print("========================================")
+print("📦 HITBOX EXPANDER - Chargement...")
+print("========================================")
 
-------------------------------------------------
--- HITBOX LOGIC (INVISIBLE)
-------------------------------------------------
-local function applyHitbox(character)
-    if modified[character] then return end
+-- Interface
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "HitboxExpanderUI"
+ScreenGui.ResetOnSpawn = false
 
-    local head = character:FindFirstChild("Head")
-    if not head then return end
+-- Essayer CoreGui, sinon PlayerGui
+pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
+if not ScreenGui.Parent then ScreenGui.Parent = playerGui end
 
-    modified[character] = {
-        Size = head.Size,
-        Transparency = head.Transparency
-    }
+-- Menu principal (style moderne)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 260, 0, 170)
+MainFrame.Position = UDim2.new(0, 20, 0, 20)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+MainFrame.Active = true
+MainFrame.Draggable = true
 
-    head.Size = Vector3.new(HITBOX_SIZE, HITBOX_SIZE, HITBOX_SIZE)
-    head.Transparency = 1
-    head.CanCollide = false
-    head.Massless = true
-end
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 15)
+UICorner.Parent = MainFrame
 
-local function restoreHitbox(character)
-    local data = modified[character]
-    if not data then return end
+-- Ombre
+local Shadow = Instance.new("ImageLabel")
+Shadow.Name = "Shadow"
+Shadow.Size = UDim2.new(1, 30, 1, 30)
+Shadow.Position = UDim2.new(0, -15, 0, -15)
+Shadow.BackgroundTransparency = 1
+Shadow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.ImageTransparency = 0.5
+Shadow.ScaleType = Enum.ScaleType.Slice
+Shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+Shadow.ZIndex = 0
+Shadow.Parent = MainFrame
 
-    local head = character:FindFirstChild("Head")
-    if head then
-        head.Size = data.Size
-        head.Transparency = data.Transparency
+-- Bordure gradient
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(100, 150, 255)
+UIStroke.Thickness = 2
+UIStroke.Transparency = 0.3
+UIStroke.Parent = MainFrame
+
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 150, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 100, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 150))
+}
+UIGradient.Rotation = 45
+UIGradient.Parent = UIStroke
+
+-- Animation gradient
+task.spawn(function()
+    while task.wait(0.05) do
+        if UIGradient then
+            UIGradient.Rotation = (UIGradient.Rotation + 1) % 360
+        end
     end
+end)
 
-    modified[character] = nil
+-- Titre (avec gradient)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+Title.Text = "✨ HITBOX EXPANDER"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 15)
+TitleCorner.Parent = Title
+
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 80, 150)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 50, 150))
+}
+TitleGradient.Rotation = 90
+TitleGradient.Parent = Title
+
+-- Emoji animé
+local EmojiLabel = Instance.new("TextLabel")
+EmojiLabel.Size = UDim2.new(0, 30, 0, 30)
+EmojiLabel.Position = UDim2.new(0, 10, 0, 7.5)
+EmojiLabel.BackgroundTransparency = 1
+EmojiLabel.Text = "📦"
+EmojiLabel.TextSize = 24
+EmojiLabel.Parent = Title
+
+-- Animation emoji
+task.spawn(function()
+    while task.wait(1) do
+        if EmojiLabel then
+            EmojiLabel:TweenSize(UDim2.new(0, 35, 0, 35), "Out", "Elastic", 0.3)
+            task.wait(0.3)
+            EmojiLabel:TweenSize(UDim2.new(0, 30, 0, 30), "Out", "Elastic", 0.3)
+        end
+    end
+end)
+
+-- Bouton ON/OFF (style moderne avec effet glow)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 120, 0, 40)
+ToggleButton.Position = UDim2.new(0.5, -60, 0, 55)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+ToggleButton.Text = "❌ OFF"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 18
+ToggleButton.Parent = MainFrame
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 10)
+ToggleCorner.Parent = ToggleButton
+
+-- Effet glow sur le bouton
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = Color3.fromRGB(255, 100, 100)
+ToggleStroke.Thickness = 2
+ToggleStroke.Transparency = 0.5
+ToggleStroke.Parent = ToggleButton
+
+-- Gradient sur le bouton
+local ToggleGradient = Instance.new("UIGradient")
+ToggleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))
+}
+ToggleGradient.Rotation = 90
+ToggleGradient.Parent = ToggleButton
+
+-- Section taille (style moderne)
+local SizeFrame = Instance.new("Frame")
+SizeFrame.Size = UDim2.new(1, -30, 0, 40)
+SizeFrame.Position = UDim2.new(0, 15, 0, 105)
+SizeFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+SizeFrame.BorderSizePixel = 0
+SizeFrame.Parent = MainFrame
+
+Instance.new("UICorner", SizeFrame).CornerRadius = UDim.new(0, 10)
+
+local SizeLabel = Instance.new("TextLabel")
+SizeLabel.Size = UDim2.new(0, 80, 1, 0)
+SizeLabel.Position = UDim2.new(0, 10, 0, 0)
+SizeLabel.BackgroundTransparency = 1
+SizeLabel.Text = "📏 Taille:"
+SizeLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+SizeLabel.Font = Enum.Font.GothamBold
+SizeLabel.TextSize = 15
+SizeLabel.TextXAlignment = Enum.TextXAlignment.Left
+SizeLabel.Parent = SizeFrame
+
+local SizeInput = Instance.new("TextBox")
+SizeInput.Size = UDim2.new(0, 70, 0, 30)
+SizeInput.Position = UDim2.new(1, -80, 0.5, -15)
+SizeInput.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+SizeInput.Text = "20"
+SizeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+SizeInput.Font = Enum.Font.GothamBold
+SizeInput.TextSize = 16
+SizeInput.PlaceholderText = "5-50"
+SizeInput.Parent = SizeFrame
+
+Instance.new("UICorner", SizeInput).CornerRadius = UDim.new(0, 8)
+
+local InputStroke = Instance.new("UIStroke")
+InputStroke.Color = Color3.fromRGB(100, 150, 255)
+InputStroke.Thickness = 1
+InputStroke.Transparency = 0.7
+InputStroke.Parent = SizeInput
+
+-- Info (style moderne)
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Size = UDim2.new(1, -20, 0, 20)
+InfoLabel.Position = UDim2.new(0, 10, 1, -25)
+InfoLabel.BackgroundTransparency = 1
+InfoLabel.Text = "💡 Plus grande zone = flash step facile"
+InfoLabel.TextColor3 = Color3.fromRGB(150, 180, 255)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.TextSize = 11
+InfoLabel.Parent = MainFrame
+
+-- Variables
+local hitboxSize = 20
+local isEnabled = false
+local hitboxParts = {}
+
+-- Fonction pour créer une hitbox invisible
+local function createInvisibleHitbox(character)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    local hrp = character.HumanoidRootPart
+    
+    -- Supprimer l'ancienne hitbox si elle existe
+    if hitboxParts[character] then
+        hitboxParts[character]:Destroy()
+        hitboxParts[character] = nil
+    end
+    
+    -- Créer une Part invisible autour du joueur
+    local hitboxPart = Instance.new("Part")
+    hitboxPart.Name = "ExpandedHitbox"
+    hitboxPart.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    hitboxPart.CFrame = hrp.CFrame
+    hitboxPart.Transparency = 1  -- Totalement invisible
+    hitboxPart.CanCollide = false
+    hitboxPart.Anchored = false
+    hitboxPart.Massless = true
+    hitboxPart.CastShadow = false
+    
+    -- Weld pour suivre le personnage
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = hrp
+    weld.Part1 = hitboxPart
+    weld.Parent = hitboxPart
+    
+    hitboxPart.Parent = character
+    hitboxParts[character] = hitboxPart
+    
+    print("✅ Hitbox invisible créée pour:", character.Name, "| Taille:", hitboxSize)
+    return true
 end
 
-local function refreshHitboxes()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            restoreHitbox(plr.Character)
-            if ENABLED_HITBOX then
-                applyHitbox(plr.Character)
+-- Fonction pour supprimer la hitbox
+local function removeHitbox(character)
+    if hitboxParts[character] then
+        hitboxParts[character]:Destroy()
+        hitboxParts[character] = nil
+        print("🔄 Hitbox supprimée pour:", character.Name)
+    end
+end
+
+-- Fonction TOGGLE (avec animations)
+local function toggleHitboxes()
+    isEnabled = not isEnabled
+    
+    print("========================================")
+    print("Toggle appelé! Nouveau statut:", isEnabled and "ON" or "OFF")
+    
+    if isEnabled then
+        -- Animation ON
+        ToggleButton:TweenSizeAndPosition(
+            UDim2.new(0, 130, 0, 42),
+            UDim2.new(0.5, -65, 0, 54),
+            "Out", "Back", 0.3
+        )
+        
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 220, 60)
+        ToggleButton.Text = "✅ ON"
+        ToggleStroke.Color = Color3.fromRGB(100, 255, 100)
+        
+        -- Effet pulse
+        task.spawn(function()
+            for i = 1, 3 do
+                ToggleStroke.Transparency = 0
+                task.wait(0.2)
+                ToggleStroke.Transparency = 0.5
+                task.wait(0.2)
+            end
+        end)
+        
+        print("=== ACTIVATION DES HITBOXES ===")
+        
+        local count = 0
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                if createInvisibleHitbox(otherPlayer.Character) then
+                    count = count + 1
+                end
+            end
+        end
+        
+        print("✅ Hitbox EXPANDER: ACTIVÉ (" .. count .. " joueurs)")
+    else
+        -- Animation OFF
+        ToggleButton:TweenSizeAndPosition(
+            UDim2.new(0, 120, 0, 40),
+            UDim2.new(0.5, -60, 0, 55),
+            "Out", "Back", 0.3
+        )
+        
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+        ToggleButton.Text = "❌ OFF"
+        ToggleStroke.Color = Color3.fromRGB(255, 100, 100)
+        
+        print("=== DÉSACTIVATION DES HITBOXES ===")
+        
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                removeHitbox(otherPlayer.Character)
+            end
+        end
+        
+        print("❌ Hitbox EXPANDER: DÉSACTIVÉ")
+    end
+    
+    print("========================================")
+end
+
+-- Mise à jour taille
+local function updateSize(value)
+    hitboxSize = math.clamp(value, 5, 50)
+    SizeInput.Text = tostring(hitboxSize)
+    
+    print("📏 Nouvelle taille:", hitboxSize)
+    
+    if isEnabled then
+        -- Réappliquer la nouvelle taille
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                createInvisibleHitbox(otherPlayer.Character)
             end
         end
     end
 end
 
-------------------------------------------------
--- ESP
-------------------------------------------------
-local function createESP(char)
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+-- ÉVÉNEMENT BOUTON
+ToggleButton.MouseButton1Click:Connect(function()
+    print("🖱️ Bouton cliqué!")
+    toggleHitboxes()
+end)
 
-    local box = Instance.new("BoxHandleAdornment")
-    box.Adornee = hrp
-    box.Size = Vector3.new(2, 5, 1)
-    box.AlwaysOnTop = true
-    box.ZIndex = 10
-    box.Color3 = ESP_COLOR
-    box.Transparency = 0.5
-    box.Parent = workspace
-
-    boxes[char] = box
-end
-
-local function removeESP(char)
-    if boxes[char] then
-        boxes[char]:Destroy()
-        boxes[char] = nil
+-- Input taille
+SizeInput.FocusLost:Connect(function()
+    local num = tonumber(SizeInput.Text)
+    if num then
+        updateSize(num)
+    else
+        SizeInput.Text = tostring(hitboxSize)
     end
-end
+end)
 
-local function refreshESP()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            removeESP(plr.Character)
-            if ENABLED_ESP then
-                createESP(plr.Character)
-            end
-        end
-    end
-end
-
-------------------------------------------------
--- CHARACTER AUTO-REAPPLY (FIX PRINCIPAL)
-------------------------------------------------
-local function setupPlayer(plr)
-    plr.CharacterAdded:Connect(function(char)
-        task.wait(0.3)
-        if ENABLED_HITBOX then
-            applyHitbox(char)
-        end
-        if ENABLED_ESP then
-            createESP(char)
+-- Gestion nouveaux joueurs
+Players.PlayerAdded:Connect(function(otherPlayer)
+    otherPlayer.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        if isEnabled and otherPlayer ~= player then
+            createInvisibleHitbox(char)
         end
     end)
-end
+end)
 
-for _, plr in pairs(Players:GetPlayers()) do
-    if plr ~= LocalPlayer then
-        setupPlayer(plr)
+-- Gestion joueurs qui partent
+Players.PlayerRemoving:Connect(function(otherPlayer)
+    if otherPlayer.Character then
+        removeHitbox(otherPlayer.Character)
+    end
+end)
+
+-- Respawn
+player.CharacterAdded:Connect(function()
+    task.wait(2)
+    if isEnabled then
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                createInvisibleHitbox(otherPlayer.Character)
+            end
+        end
+    end
+end)
+
+-- Raccourci clavier (PC)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
+        toggleHitboxes()
+    end
+end)
+
+-- Initialisation pour joueurs déjà présents
+for _, otherPlayer in pairs(Players:GetPlayers()) do
+    if otherPlayer ~= player and otherPlayer.Character then
+        otherPlayer.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            if isEnabled then
+                createInvisibleHitbox(char)
+            end
+        end)
     end
 end
 
-Players.PlayerAdded:Connect(function(plr)
-    if plr ~= LocalPlayer then
-        setupPlayer(plr)
-    end
-end)
-
-------------------------------------------------
--- GUI
-------------------------------------------------
-local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-gui.Name = "DarkHub"
-
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 260, 0, 240)
-frame.Position = UDim2.new(0.5, -130, 0.5, -120)
-frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Name = "MainFrame"
-
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(25,25,25)
-title.Text = "Dark Hub"
-title.TextColor3 = Color3.new(1,1,1)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-
--- HITBOX TOGGLE
-local hbToggle = Instance.new("TextButton", frame)
-hbToggle.Size = UDim2.new(0.8,0,0,40)
-hbToggle.Position = UDim2.new(0.1,0,0.15,0)
-hbToggle.BackgroundColor3 = Color3.fromRGB(180,50,50)
-hbToggle.Text = "Hitbox OFF"
-hbToggle.TextColor3 = Color3.new(1,1,1)
-hbToggle.Font = Enum.Font.SourceSansBold
-
-hbToggle.MouseButton1Click:Connect(function()
-    ENABLED_HITBOX = not ENABLED_HITBOX
-    hbToggle.Text = ENABLED_HITBOX and "Hitbox ON" or "Hitbox OFF"
-    hbToggle.BackgroundColor3 = ENABLED_HITBOX and Color3.fromRGB(50,180,50) or Color3.fromRGB(180,50,50)
-    refreshHitboxes()
-end)
-
--- ESP TOGGLE
-local espToggle = Instance.new("TextButton", frame)
-espToggle.Size = UDim2.new(0.8,0,0,40)
-espToggle.Position = UDim2.new(0.1,0,0.35,0)
-espToggle.BackgroundColor3 = Color3.fromRGB(180,50,50)
-espToggle.Text = "ESP OFF"
-espToggle.TextColor3 = Color3.new(1,1,1)
-espToggle.Font = Enum.Font.SourceSansBold
-
-espToggle.MouseButton1Click:Connect(function()
-    ENABLED_ESP = not ENABLED_ESP
-    espToggle.Text = ENABLED_ESP and "ESP ON" or "ESP OFF"
-    espToggle.BackgroundColor3 = ENABLED_ESP and Color3.fromRGB(50,180,50) or Color3.fromRGB(180,50,50)
-    refreshESP()
-end)
-
--- HITBOX SIZE
-local sizeLabel = Instance.new("TextLabel", frame)
-sizeLabel.Size = UDim2.new(1,0,0,25)
-sizeLabel.Position = UDim2.new(0,0,0.6,0)
-sizeLabel.BackgroundTransparency = 1
-sizeLabel.TextColor3 = Color3.new(1,1,1)
-sizeLabel.Text = "Hitbox Size: "..HITBOX_SIZE
-sizeLabel.Font = Enum.Font.SourceSans
-sizeLabel.TextSize = 18
-
-local sizeBox = Instance.new("TextBox", frame)
-sizeBox.Size = UDim2.new(0.8,0,0,30)
-sizeBox.Position = UDim2.new(0.1,0,0.65,0)
-sizeBox.Text = tostring(HITBOX_SIZE)
-sizeBox.ClearTextOnFocus = false
-sizeBox.TextColor3 = Color3.new(1,1,1)
-sizeBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
-sizeBox.Font = Enum.Font.SourceSansBold
-sizeBox.TextScaled = true
-
-sizeBox.FocusLost:Connect(function()
-    local v = tonumber(sizeBox.Text)
-    if v and v >= 2 then
-        HITBOX_SIZE = v
-        sizeLabel.Text = "Hitbox Size: "..HITBOX_SIZE
-        if ENABLED_HITBOX then refreshHitboxes() end
-    else
-        sizeBox.Text = tostring(HITBOX_SIZE)
-    end
-end)
-
--- MENU TOGGLE
-local toggleMenuBtn = Instance.new("TextButton", gui)
-toggleMenuBtn.Size = UDim2.new(0,120,0,30)
-toggleMenuBtn.Position = UDim2.new(0,10,0,10)
-toggleMenuBtn.Text = "Hide Menu"
-toggleMenuBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-toggleMenuBtn.TextColor3 = Color3.new(1,1,1)
-toggleMenuBtn.Font = Enum.Font.SourceSansBold
-
-local menuVisible = true
-toggleMenuBtn.MouseButton1Click:Connect(function()
-    menuVisible = not menuVisible
-    frame.Visible = menuVisible
-    toggleMenuBtn.Text = menuVisible and "Hide Menu" or "Show Menu"
-end) 
+print("========================================")
+print("✅ HITBOX EXPANDER CHARGÉ!")
+print("📱 Compatible: PC & Mobile")
+print("📏 Taille par défaut: 20 studs")
+print("⌨️ Raccourci PC: RightShift")
+print("========================================")
