@@ -1,8 +1,9 @@
 print("Hello World")
 
 --[[
-    HITBOX EXPANDER - PC & Mobile
+    HITBOX EXPANDER - PC & Mobile (VERSION FIXÉE)
     Agrandit les hitboxes des ENNEMIS pour faciliter le flash step
+    ✅ Gère automatiquement les morts et respawns
 ]]
 
 local Players = game:GetService("Players")
@@ -13,7 +14,7 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 print("========================================")
-print("📦 HITBOX EXPANDER - Chargement...")
+print("📦 HITBOX EXPANDER V2 - Chargement...")
 print("========================================")
 
 -- Interface
@@ -83,7 +84,7 @@ end)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 45)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-Title.Text = "✨ HITBOX EXPANDER"
+Title.Text = "✨ HITBOX EXPANDER V2"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 18
@@ -197,8 +198,8 @@ local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(1, -20, 0, 20)
 InfoLabel.Position = UDim2.new(0, 10, 1, -25)
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "💡 Plus grande zone = flash step facile"
-InfoLabel.TextColor3 = Color3.fromRGB(150, 180, 255)
+InfoLabel.Text = "💡 Auto-reset après mort ✅"
+InfoLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
 InfoLabel.Font = Enum.Font.Gotham
 InfoLabel.TextSize = 11
 InfoLabel.Parent = MainFrame
@@ -207,18 +208,26 @@ InfoLabel.Parent = MainFrame
 local hitboxSize = 20
 local isEnabled = false
 local hitboxParts = {}
+local playerConnections = {} -- NOUVEAU: Stocker les connexions
 
 -- Fonction pour créer une hitbox invisible
 local function createInvisibleHitbox(character)
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
+    if not character then
         return false
     end
     
-    local hrp = character.HumanoidRootPart
+    -- Attendre que HumanoidRootPart existe vraiment
+    local hrp = character:WaitForChild("HumanoidRootPart", 5)
+    if not hrp then
+        warn("⚠️ HumanoidRootPart introuvable pour:", character.Name)
+        return false
+    end
     
     -- Supprimer l'ancienne hitbox si elle existe
     if hitboxParts[character] then
-        hitboxParts[character]:Destroy()
+        pcall(function()
+            hitboxParts[character]:Destroy()
+        end)
         hitboxParts[character] = nil
     end
     
@@ -242,16 +251,59 @@ local function createInvisibleHitbox(character)
     hitboxPart.Parent = character
     hitboxParts[character] = hitboxPart
     
-    print("✅ Hitbox invisible créée pour:", character.Name, "| Taille:", hitboxSize)
+    print("✅ Hitbox créée pour:", character.Name, "| Taille:", hitboxSize)
     return true
 end
 
 -- Fonction pour supprimer la hitbox
 local function removeHitbox(character)
     if hitboxParts[character] then
-        hitboxParts[character]:Destroy()
+        pcall(function()
+            hitboxParts[character]:Destroy()
+        end)
         hitboxParts[character] = nil
-        print("🔄 Hitbox supprimée pour:", character.Name)
+        print("🗑️ Hitbox supprimée pour:", character.Name)
+    end
+end
+
+-- NOUVEAU: Fonction pour gérer un joueur (avec auto-respawn)
+local function setupPlayer(otherPlayer)
+    if otherPlayer == player then return end
+    
+    print("🔧 Setup du joueur:", otherPlayer.Name)
+    
+    -- Nettoyer les anciennes connexions
+    if playerConnections[otherPlayer] then
+        for _, conn in pairs(playerConnections[otherPlayer]) do
+            pcall(function() conn:Disconnect() end)
+        end
+    end
+    
+    playerConnections[otherPlayer] = {}
+    
+    -- Fonction pour gérer un nouveau character
+    local function onCharacterAdded(character)
+        print("👤 Character ajouté pour:", otherPlayer.Name)
+        
+        -- Attendre un peu que tout se charge
+        task.wait(1)
+        
+        -- Si activé, créer la hitbox
+        if isEnabled then
+            print("🔄 Recréation hitbox pour:", otherPlayer.Name)
+            createInvisibleHitbox(character)
+        end
+    end
+    
+    -- Connecter CharacterAdded
+    local charConn = otherPlayer.CharacterAdded:Connect(onCharacterAdded)
+    table.insert(playerConnections[otherPlayer], charConn)
+    
+    -- Si le character existe déjà
+    if otherPlayer.Character then
+        task.spawn(function()
+            onCharacterAdded(otherPlayer.Character)
+        end)
     end
 end
 
@@ -296,6 +348,8 @@ local function toggleHitboxes()
         end
         
         print("✅ Hitbox EXPANDER: ACTIVÉ (" .. count .. " joueurs)")
+        InfoLabel.Text = "💡 Auto-reset: ✅ ACTIF"
+        InfoLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
     else
         -- Animation OFF
         ToggleButton:TweenSizeAndPosition(
@@ -317,6 +371,8 @@ local function toggleHitboxes()
         end
         
         print("❌ Hitbox EXPANDER: DÉSACTIVÉ")
+        InfoLabel.Text = "💡 Auto-reset: ⏸️ Pause"
+        InfoLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
     end
     
     print("========================================")
@@ -357,25 +413,34 @@ end)
 
 -- Gestion nouveaux joueurs
 Players.PlayerAdded:Connect(function(otherPlayer)
-    otherPlayer.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        if isEnabled and otherPlayer ~= player then
-            createInvisibleHitbox(char)
-        end
-    end)
+    print("➕ Nouveau joueur:", otherPlayer.Name)
+    setupPlayer(otherPlayer)
 end)
 
 -- Gestion joueurs qui partent
 Players.PlayerRemoving:Connect(function(otherPlayer)
+    print("➖ Joueur parti:", otherPlayer.Name)
+    
     if otherPlayer.Character then
         removeHitbox(otherPlayer.Character)
     end
+    
+    -- Nettoyer les connexions
+    if playerConnections[otherPlayer] then
+        for _, conn in pairs(playerConnections[otherPlayer]) do
+            pcall(function() conn:Disconnect() end)
+        end
+        playerConnections[otherPlayer] = nil
+    end
 end)
 
--- Respawn
+-- Respawn du joueur principal
 player.CharacterAdded:Connect(function()
+    print("🔄 Respawn du joueur principal")
     task.wait(2)
+    
     if isEnabled then
+        print("♻️ Réactivation des hitboxes après respawn")
         for _, otherPlayer in pairs(Players:GetPlayers()) do
             if otherPlayer ~= player and otherPlayer.Character then
                 createInvisibleHitbox(otherPlayer.Character)
@@ -391,21 +456,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Initialisation pour joueurs déjà présents
+-- INITIALISATION: Setup tous les joueurs présents
+print("🚀 Initialisation des joueurs...")
 for _, otherPlayer in pairs(Players:GetPlayers()) do
-    if otherPlayer ~= player and otherPlayer.Character then
-        otherPlayer.CharacterAdded:Connect(function(char)
-            task.wait(1)
-            if isEnabled then
-                createInvisibleHitbox(char)
-            end
-        end)
-    end
+    setupPlayer(otherPlayer)
 end
 
 print("========================================")
-print("✅ HITBOX EXPANDER CHARGÉ!")
+print("✅ HITBOX EXPANDER V2 CHARGÉ!")
 print("📱 Compatible: PC & Mobile")
 print("📏 Taille par défaut: 20 studs")
 print("⌨️ Raccourci PC: RightShift")
+print("🔄 Auto-respawn: ✅ ACTIVÉ")
 print("========================================")
