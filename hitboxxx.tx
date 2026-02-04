@@ -55,30 +55,7 @@ Shadow.SliceCenter = Rect.new(10, 10, 118, 118)
 Shadow.ZIndex = 0
 Shadow.Parent = MainFrame
 
--- Bordure gradient
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(100, 150, 255)
-UIStroke.Thickness = 2
-UIStroke.Transparency = 0.3
-UIStroke.Parent = MainFrame
-
-local UIGradient = Instance.new("UIGradient")
-UIGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 150, 255)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 100, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 150))
-}
-UIGradient.Rotation = 45
-UIGradient.Parent = UIStroke
-
--- Animation gradient
-task.spawn(function()
-    while task.wait(0.05) do
-        if UIGradient then
-            UIGradient.Rotation = (UIGradient.Rotation + 1) % 360
-        end
-    end
-end)
+-- Pas de bordure !
 
 -- Titre (avec gradient)
 local Title = Instance.new("TextLabel")
